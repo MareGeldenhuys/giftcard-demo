@@ -25,7 +25,10 @@ data class CardSummary(@Id var id: String, var initialValue: Int, var remainingV
 }
 
 data class CardSummaryFilter(val idStartsWith: String = "")
-class CountCardSummariesQuery(val filter: CardSummaryFilter = CardSummaryFilter()) { override fun toString() : String = "CountCardSummariesQuery" }
+class CountCardSummariesQuery(val filter: CardSummaryFilter = CardSummaryFilter()) {
+    override fun toString(): String = "CountCardSummariesQuery"
+}
+
 data class CountCardSummariesResponse(val count: Int, val lastEvent: Long)
 data class FetchCardSummariesQuery(val offset: Int, val limit: Int, val filter: CardSummaryFilter)
 
