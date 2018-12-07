@@ -25,7 +25,7 @@ public class CardSummaryProjection {
 
     @EventHandler
     public void on(IssuedEvt event) {
-        log.trace("projecting {}", event);
+        log.debug("projecting {}", event);
         /*
          * Update our read model by inserting the new card. This is done so that upcoming regular
          * (non-subscription) queries get correct data.
@@ -45,7 +45,7 @@ public class CardSummaryProjection {
 
     @EventHandler
     public void on(RedeemedEvt event) {
-        log.trace("projecting {}", event);
+        log.debug("projecting {}", event);
         /*
          * Update our read model by updating the existing card. This is done so that upcoming regular
          * (non-subscription) queries get correct data.

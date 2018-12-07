@@ -1,12 +1,27 @@
 package io.axoniq.demo.giftcard.gui;
 
-import com.vaadin.server.Page;
-import io.axoniq.demo.giftcard.api.*;
 import com.vaadin.annotations.Push;
 import com.vaadin.server.DefaultErrorHandler;
+import com.vaadin.server.Page;
 import com.vaadin.server.VaadinRequest;
+import com.vaadin.server.VaadinSession;
 import com.vaadin.spring.annotation.SpringUI;
-import com.vaadin.ui.*;
+import com.vaadin.ui.Alignment;
+import com.vaadin.ui.Button;
+import com.vaadin.ui.FormLayout;
+import com.vaadin.ui.Grid;
+import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Label;
+import com.vaadin.ui.Notification;
+import com.vaadin.ui.Panel;
+import com.vaadin.ui.TextField;
+import com.vaadin.ui.UI;
+import com.vaadin.ui.VerticalLayout;
+import io.axoniq.demo.giftcard.api.CardSummary;
+import io.axoniq.demo.giftcard.api.CountCardSummariesQuery;
+import io.axoniq.demo.giftcard.api.CountCardSummariesResponse;
+import io.axoniq.demo.giftcard.api.IssueCmd;
+import io.axoniq.demo.giftcard.api.RedeemCmd;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.queryhandling.QueryGateway;
 import org.slf4j.Logger;
@@ -40,6 +55,9 @@ public class GiftcardUI extends UI {
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
+        // Set Session timeout programmatically. Overrides the default timeout configured for Servlet.
+        VaadinSession.getCurrent().getSession().setMaxInactiveInterval( ( int ) TimeUnit.MINUTES.toSeconds( 10 ) );
+
         HorizontalLayout commandBar = new HorizontalLayout();
         commandBar.setWidth("100%");
         commandBar.addComponents(issuePanel(), bulkIssuePanel(), redeemPanel());
@@ -92,7 +110,9 @@ public class GiftcardUI extends UI {
         Button submit = new Button("Submit");
 
         submit.addClickListener(evt -> {
-            commandGateway.sendAndWait(new IssueCmd(id.getValue(), Integer.parseInt(amount.getValue())));
+            final IssueCmd issueCmd = new IssueCmd(id.getValue(), Integer.parseInt(amount.getValue()));
+            log.debug("Submitting {}", issueCmd);
+            commandGateway.sendAndWait(issueCmd);
             Notification.show("Success", Notification.Type.HUMANIZED_MESSAGE)
                     .addCloseListener(e -> cardSummaryDataProvider.refreshAll());
         });
@@ -145,9 +165,16 @@ public class GiftcardUI extends UI {
         Button submit = new Button("Submit");
 
         submit.addClickListener(evt -> {
-            commandGateway.sendAndWait(new RedeemCmd(id.getValue(), Integer.parseInt(amount.getValue())));
-            Notification.show("Success", Notification.Type.HUMANIZED_MESSAGE)
-                    .addCloseListener(e -> cardSummaryDataProvider.refreshAll());
+            final RedeemCmd redeemCmd = new RedeemCmd(id.getValue(), Integer.parseInt(amount.getValue()));
+            log.debug("Submitting {}", redeemCmd);
+            final String result = commandGateway.sendAndWait(redeemCmd);
+            if("Success".equals(result)){
+                Notification.show("Success", Notification.Type.HUMANIZED_MESSAGE)
+                        .addCloseListener(e -> cardSummaryDataProvider.refreshAll());
+            }else {
+                Notification.show(result, Notification.Type.WARNING_MESSAGE)
+                        .addCloseListener(e -> cardSummaryDataProvider.refreshAll());
+            }
         });
 
         FormLayout form = new FormLayout();
@@ -182,9 +209,13 @@ public class GiftcardUI extends UI {
          @Override
          public void run() {
              CountCardSummariesQuery query = new CountCardSummariesQuery();
-             queryGateway.query(
-                     query, CountCardSummariesResponse.class).whenComplete((r, exception) -> {
-                 if( exception == null) statusLabel.setValue(Instant.ofEpochMilli(r.getLastEvent()).atOffset(instantOffset).toString());
+             queryGateway.query(query, CountCardSummariesResponse.class)
+                     .whenComplete((r, exception) -> {
+                 if( exception == null) {
+                     statusLabel.setValue(Instant.ofEpochMilli(r.getLastEvent())
+                             .atOffset(instantOffset)
+                             .toString());
+                 }
              });
 
          }

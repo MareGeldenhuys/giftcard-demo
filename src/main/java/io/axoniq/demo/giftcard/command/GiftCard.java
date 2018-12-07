@@ -1,6 +1,11 @@
 package io.axoniq.demo.giftcard.command;
 
-import io.axoniq.demo.giftcard.api.*;
+import io.axoniq.demo.giftcard.api.CancelCmd;
+import io.axoniq.demo.giftcard.api.CancelEvt;
+import io.axoniq.demo.giftcard.api.IssueCmd;
+import io.axoniq.demo.giftcard.api.IssuedEvt;
+import io.axoniq.demo.giftcard.api.RedeemCmd;
+import io.axoniq.demo.giftcard.api.RedeemedEvt;
 import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.modelling.command.AggregateIdentifier;
@@ -8,6 +13,7 @@ import org.axonframework.spring.stereotype.Aggregate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
+import org.springframework.util.StringUtils;
 
 import java.lang.invoke.MethodHandles;
 
@@ -22,6 +28,7 @@ public class GiftCard {
     @AggregateIdentifier
     private String id;
     private int remainingValue;
+    private String status;
 
     public GiftCard() {
         log.debug("empty constructor invoked");
@@ -30,16 +37,18 @@ public class GiftCard {
     @CommandHandler
     public GiftCard(IssueCmd cmd) {
         log.debug("handling {}", cmd);
+        if(StringUtils.isEmpty(cmd.getId())) throw new IllegalArgumentException("Id is blank");
         if(cmd.getAmount() <= 0) throw new IllegalArgumentException("amount <= 0");
         apply(new IssuedEvt(cmd.getId(), cmd.getAmount()));
     }
 
     @CommandHandler
-    public void handle(RedeemCmd cmd) {
+    public String handle(RedeemCmd cmd) {
         log.debug("handling {}", cmd);
-        if(cmd.getAmount() <= 0) throw new IllegalArgumentException("amount <= 0");
-        if(cmd.getAmount() > remainingValue) throw new IllegalStateException("amount > remaining value");
+        if(cmd.getAmount() <= 0) return "amount <= 0";
+        if(cmd.getAmount() > remainingValue) return "amount > remaining value";
         apply(new RedeemedEvt(id, cmd.getAmount()));
+        return "Success";
     }
 
     @CommandHandler
@@ -50,7 +59,7 @@ public class GiftCard {
 
     @EventSourcingHandler
     public void on(IssuedEvt evt) {
-        log.debug("applying {}", evt);
+        log.debug("event sourcing applying {}", evt);
         id = evt.getId();
         remainingValue = evt.getAmount();
         log.debug("new remaining value: {}", remainingValue);
@@ -58,14 +67,14 @@ public class GiftCard {
 
     @EventSourcingHandler
     public void on(RedeemedEvt evt) {
-        log.debug("applying {}", evt);
+        log.debug("event sourcing applying {}", evt);
         remainingValue -= evt.getAmount();
         log.debug("new remaining value: {}", remainingValue);
     }
 
     @EventSourcingHandler
     public void on(CancelEvt evt) {
-        log.debug("applying {}", evt);
+        log.debug("event sourcing applying {}", evt);
         remainingValue = 0;
         log.debug("new remaining value: {}", remainingValue);
     }
